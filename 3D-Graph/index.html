@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Medical NER</title>
+    <style> body {
+        margin: 0;
+    } </style>
+
+    <script src="//unpkg.com/3d-force-graph"></script>
+</head>
+<body>
+<div id="3d-graph"></div>
+<div style="position: absolute; top: 10vh; left: 10vw">
+    <label for="node-search-select" style="font-weight: 500; color: white">Search for Node: </label>
+    <select id="node-search-select">
+        <option selected disabled value=""></option>
+    </select>
+</div>
+<!--<div style="position: absolute; top: 20vh; left: 10vw">-->
+<!--    <label for="color-by-select" style="font-weight: 500; color: white">Color Nodes By: </label>-->
+<!--    <select id="color-by-select">-->
+<!--        <option selected value="label">Label</option>-->
+<!--        <option value="community">Community</option>-->
+<!--        <option value="degree_centrality">Centrality</option>-->
+<!--    </select>-->
+<!--</div>-->
+
+<script>
+    let nodes;
+    let globalNetworkData;
+    let globalGraph;
+    let globalColorBy = 'community'
+
+    function findNode(node) {
+
+
+        const distance = 40;
+        const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+
+        const newPos = node.x || node.y || node.z
+            ? {x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio}
+            : {x: 0, y: 0, z: distance};
+
+        globalGraph.cameraPosition(
+            newPos,
+            node,
+            3000
+        );
+    }
+
+
+    fetch('./capstone_gds_network.json')
+        .then((response) => response.json())
+        .then((json) => generateGraph(json, globalColorBy));
+
+    function generateGraph(networkData, colorBy) {
+        nodes = networkData.nodes.sort((a, b) => a.text.localeCompare(b.text));
+        let nodeSelect = document.getElementById('node-search-select')
+
+        networkData.nodes.slice(0, 1000).forEach(node => {
+            if (node.label.toLowerCase() !== 'abstract') {
+                let nodeOption = document.createElement('option')
+                nodeOption.text = node.text.substring(0, 25) + `: ${node.label.toUpperCase()}`
+                nodeOption.value = node.id
+                nodeSelect.appendChild(nodeOption)
+            }
+        })
+
+        const gData = {
+            nodes: networkData.nodes,
+            links: networkData.links
+        };
+
+        globalNetworkData = gData
+
+        globalGraph = ForceGraph3D({controlType: 'orbit'})
+        (document.getElementById('3d-graph'))
+            .graphData(gData)
+            .nodeAutoColorBy(colorBy)
+            .nodeLabel(node => node.text)
+            .onNodeClick(node => {
+                findNode(node)
+            });
+    }
+
+    document.getElementById('node-search-select').addEventListener('change', (event) => {
+        const targetNodeId = event.target.value
+        let foundNode;
+        nodes.forEach(node => {
+            if (node.id === parseInt(targetNodeId)) {
+                foundNode = node
+            }
+
+        })
+        findNode(foundNode)
+    })
+
+    // document.getElementById('color-by-select').addEventListener('change', (event) => {
+    //     console.log(event.target.value)
+    //     globalGraph.pauseAnimation();
+    //     globalGraph.graphData({nodes: [], links: []});
+    //     globalGraph.onNodeClick(null);
+    //     globalGraph = null;
+    //     document.getElementById('3d-graph').innerHTML = ''
+    //     globalGraph = ForceGraph3D({controlType: 'orbit'})
+    //     (document.getElementById('3d-graph'))
+    //         .graphData(globalNetworkData)
+    //         .nodeAutoColorBy(event.target.value)
+    //         .nodeLabel(node => node.text)
+    //         .onNodeClick(node => {
+    //             findNode(node)
+    //         });
+    // })
+
+
+</script>
+</body>
+</html>
